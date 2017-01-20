@@ -1,3 +1,4 @@
 <resources>
     <string name="app_name">SQLiteSamples</string>
+    <string name="update">update</string>
 </resources>

@@ -1,18 +1,15 @@
 package cmars.sqlitesamples;
 
-import android.support.v7.app.AppCompatActivity;
 import android.os.Bundle;
+import android.support.v7.app.AppCompatActivity;
 import android.support.v7.widget.LinearLayoutManager;
 import android.support.v7.widget.RecyclerView;
-import android.view.MotionEvent;
 import android.view.View;
 
-import java.util.ArrayList;
 import java.util.List;
 
 import cmars.sqlitesamples.adapter.BoxesAdapter;
 import cmars.sqlitesamples.adapter.ItemsAdapter;
-import cmars.sqlitesamples.db.StoreDbHelper;
 import cmars.sqlitesamples.db.StoreHelper;
 import cmars.sqlitesamples.model.Box;
 import cmars.sqlitesamples.model.Item;
@@ -38,6 +35,16 @@ public class MainActivity extends AppCompatActivity {
 
         initDb();
         setupLists();
+        setupUpdateButton();
+    }
+
+    private void setupUpdateButton() {
+        findViewById(R.id.buttonUpdate).setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View view) {
+
+            }
+        });
     }
 
     private void initDb() {
