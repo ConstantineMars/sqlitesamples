@@ -12,6 +12,8 @@ import java.util.List;
 import cmars.sqlitesamples.model.Box;
 import cmars.sqlitesamples.model.DefaultValues;
 import cmars.sqlitesamples.model.Item;
+import cmars.sqlitesamples.sync.Store;
+import cmars.sqlitesamples.sync.Updater;
 
 /**
  * Created by Constantine Mars on 1/19/17.
@@ -42,7 +44,7 @@ public class StoreHelper {
         }
 
         for(Item item:DefaultValues.Before.items) {
-            insertItem(db, item);
+            insertItem(item);
         }
     }
 
@@ -62,7 +64,7 @@ public class StoreHelper {
         return db.insert(StoreContract.Box.TABLE_NAME, null, values);
     }
 
-    private long insertItem(SQLiteDatabase db, Item item) {
+    private long insertItem(Item item) {
         ContentValues values = new ContentValues();
 
         values.put(StoreContract.Item.COLUMN_BOX_ID, item.getBoxId());
@@ -143,8 +145,44 @@ public class StoreHelper {
         return items;
     }
 
-    public void updateItems(Item[] newItemsArray) {
-        List<Item> newItems = Arrays.asList(newItemsArray);
+    public void updateItemsWithUpdater(final Item[] newItems) {
+        Updater<Item> itemUpdater = new Updater<>();
+        Store<Item> itemStore = new Store<Item>() {
+            @Override
+            public List<Item> queryAll() {
+                return queryAllItems();
+            }
+
+            @Override
+            public List<Item> getAllNew() {
+                return Arrays.asList(newItems);
+            }
+
+            @Override
+            public void update(Item item) {
+                updateItem(item);
+            }
+
+            @Override
+            public void delete(Item item) {
+                deleteItem(item);
+            }
+
+            @Override
+            public void insert(Item item) {
+                insertItem(item);
+            }
+
+            @Override
+            public boolean eligibleToDelete(Item item) {
+                return !item.isNew();
+            }
+        };
+
+        itemUpdater.update(itemStore);
+    }
+
+    public void updateItems(Item[] newItems) {
         List<Item> items = queryAllItems();
 
 //        First pass - find which old items to delete and which to update
@@ -174,7 +212,7 @@ public class StoreHelper {
             }
 
             if(!found) {
-                insertItem(db, newItem);
+                insertItem(newItem);
             }
         }
     }

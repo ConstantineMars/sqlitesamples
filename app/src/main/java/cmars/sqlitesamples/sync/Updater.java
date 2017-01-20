@@ -1,11 +1,7 @@
 package cmars.sqlitesamples.sync;
 
-import java.util.ArrayList;
 import java.util.List;
 
-import cmars.sqlitesamples.db.StoreHelper;
-import cmars.sqlitesamples.model.Box;
-import cmars.sqlitesamples.model.Item;
 import lombok.Data;
 
 /**
@@ -13,11 +9,41 @@ import lombok.Data;
  */
 
 @Data
-public abstract class Updater {
-    List<Box> newBoxes = new ArrayList<>();
-    List<Item> newItems = new ArrayList<>();
+public class Updater<T> {
 
-    public void update(StoreHelper storeHelper, Box[]newBoxes, Item[] newItems) {
-//        storeHelper
+    public void update(Store<T> store) {
+        List<T> items = store.queryAll();
+        List<T> newItems = store.getAllNew();
+
+//        First pass - find which old items to delete and which to update
+        for(T item:items) {
+            boolean found = false;
+
+            for(T newItem:newItems) {
+                if(newItem.equals(item)) {
+                    store.update(newItem);
+                    found = true;
+                }
+            }
+
+            if(!found && store.eligibleToDelete(item)) {
+                store.delete(item);
+            }
+        }
+
+//        Second pass - find which items to insert
+        for(T newItem:newItems) {
+            boolean found = false;
+
+            for(T item:items) {
+                if(newItem.equals(item)) {
+                    found = true;
+                }
+            }
+
+            if(!found) {
+                store.insert(newItem);
+            }
+        }
     }
 }

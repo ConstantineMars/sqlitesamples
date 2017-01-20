@@ -40,4 +40,16 @@ public class Item {
 
         return values;
     }
+
+    @Override
+    public boolean equals(Object o) {
+        if(!(o instanceof Item)) {
+            return false;
+        }
+        if(o == this) {
+            return true;
+        }
+        Item other = (Item) o;
+        return other.getId() == this.getId();
+    }
 }
