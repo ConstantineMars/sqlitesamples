@@ -12,6 +12,7 @@ import cmars.sqlitesamples.adapter.BoxesAdapter;
 import cmars.sqlitesamples.adapter.ItemsAdapter;
 import cmars.sqlitesamples.db.StoreHelper;
 import cmars.sqlitesamples.model.Box;
+import cmars.sqlitesamples.model.DefaultValues;
 import cmars.sqlitesamples.model.Item;
 import cmars.sqlitesamples.view.BoxItemClickListener;
 
@@ -24,6 +25,8 @@ public class MainActivity extends AppCompatActivity {
 
     BoxesAdapter boxesAdapter;
     ItemsAdapter itemsAdapter;
+
+    private long selectedBoxId = 1;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -42,7 +45,11 @@ public class MainActivity extends AppCompatActivity {
         findViewById(R.id.buttonUpdate).setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View view) {
+                storeHelper.updateItemsWithUpdater(DefaultValues.New.items);
+                storeHelper.updateBoxesWithUpdater(DefaultValues.New.boxes);
 
+                refreshBoxes();
+                refreshItems(selectedBoxId);
             }
         });
     }
@@ -58,7 +65,7 @@ public class MainActivity extends AppCompatActivity {
         topList.setLayoutManager(new LinearLayoutManager(this, LinearLayoutManager.HORIZONTAL, false));
         mainList.setLayoutManager(new LinearLayoutManager(this, LinearLayoutManager.VERTICAL, false));
 
-        final List<Box> boxes = storeHelper.queryBoxes();
+        final List<Box> boxes = storeHelper.queryAllBoxes();
 
         boxesAdapter = new BoxesAdapter(boxes);
         topList.setAdapter(boxesAdapter);
@@ -71,12 +78,22 @@ public class MainActivity extends AppCompatActivity {
         topList.addOnItemTouchListener(new BoxItemClickListener(this, new BoxItemClickListener.OnItemClickListener() {
             @Override
             public void onItemClick(View view, int position) {
-                long boxId = boxes.get(position).getId();
-                List<Item> itemsForSelectedBox = storeHelper.queryItems(boxId);
-                itemsAdapter.setAllItems(itemsForSelectedBox);
-                itemsAdapter.notifyDataSetChanged();
+                selectedBoxId = boxes.get(position).getId();
+                refreshItems(selectedBoxId);
             }
         }));
+    }
+
+    private void refreshItems(long boxId) {
+        List<Item> itemsForSelectedBox = storeHelper.queryItems(boxId);
+        itemsAdapter.setAllItems(itemsForSelectedBox);
+        itemsAdapter.notifyDataSetChanged();
+    }
+
+    private void refreshBoxes() {
+        List<Box> boxes = storeHelper.queryAllBoxes();
+        boxesAdapter.setAllBoxes(boxes);
+        boxesAdapter.notifyDataSetChanged();
     }
 
     @Override

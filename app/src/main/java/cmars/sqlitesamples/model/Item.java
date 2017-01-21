@@ -1,6 +1,7 @@
 package cmars.sqlitesamples.model;
 
 import android.content.ContentValues;
+import android.database.Cursor;
 
 import cmars.sqlitesamples.db.StoreContract;
 import lombok.AllArgsConstructor;
@@ -22,12 +23,12 @@ public class Item {
         this(id, boxId, name, price, false);
     }
 
-    public Item(long id, long boxId, String name, int price, boolean isNew) {
-        this.id = id;
-        this.boxId = boxId;
-        this.name = name;
-        this.price = price;
-        this.isNew = isNew;
+    public Item(Cursor cursor) {
+        id = cursor.getLong(cursor.getColumnIndexOrThrow(StoreContract.Item._ID));
+        boxId = cursor.getLong(cursor.getColumnIndexOrThrow(StoreContract.Item.COLUMN_BOX_ID));
+        name = cursor.getString(cursor.getColumnIndexOrThrow(StoreContract.Item.COLUMN_NAME));
+        price = cursor.getInt(cursor.getColumnIndexOrThrow(StoreContract.Item.COLUMN_PRICE));
+        isNew = cursor.getInt(cursor.getColumnIndexOrThrow(StoreContract.Item.COLUMN_IS_NEW)) == 1;
     }
 
     public ContentValues toContentValues() {
@@ -37,6 +38,7 @@ public class Item {
         values.put(StoreContract.Item.COLUMN_BOX_ID, boxId);
         values.put(StoreContract.Item.COLUMN_NAME, name);
         values.put(StoreContract.Item.COLUMN_PRICE, price);
+        values.put(StoreContract.Item.COLUMN_IS_NEW, isNew);
 
         return values;
     }

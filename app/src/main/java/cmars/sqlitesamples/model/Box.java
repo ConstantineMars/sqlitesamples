@@ -1,6 +1,7 @@
 package cmars.sqlitesamples.model;
 
 import android.content.ContentValues;
+import android.database.Cursor;
 
 import cmars.sqlitesamples.db.StoreContract;
 import lombok.AllArgsConstructor;
@@ -15,7 +16,12 @@ public class Box {
     private long id;
     private String title;
 
-    ContentValues toContentValues() {
+    public Box(Cursor cursor) {
+        id = cursor.getLong(cursor.getColumnIndexOrThrow(StoreContract.Box._ID));
+        title = cursor.getString(cursor.getColumnIndexOrThrow(StoreContract.Box.COLUMN_TITLE));
+    }
+
+    public ContentValues toContentValues() {
         ContentValues values = new ContentValues();
 
         values.put(StoreContract.Box._ID, id);

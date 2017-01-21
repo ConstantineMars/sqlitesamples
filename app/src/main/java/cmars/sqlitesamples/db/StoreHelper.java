@@ -40,7 +40,7 @@ public class StoreHelper {
         clearDb();
 
         for(Box box:DefaultValues.Before.boxes) {
-            insertBox(db, box);
+            insertBox(box);
         }
 
         for(Item item:DefaultValues.Before.items) {
@@ -56,48 +56,39 @@ public class StoreHelper {
         db.execSQL(StoreContract.Item.SQL_CREATE);
     }
 
-    private long insertBox(SQLiteDatabase db, Box box) {
-        ContentValues values = new ContentValues();
-
-        values.put(StoreContract.Box.COLUMN_TITLE, box.getTitle());
-
-        return db.insert(StoreContract.Box.TABLE_NAME, null, values);
+    private long insertBox(Box box) {
+        return insert(box.toContentValues(),
+                StoreContract.Box.TABLE_NAME);
     }
 
     private long insertItem(Item item) {
-        ContentValues values = new ContentValues();
-
-        values.put(StoreContract.Item.COLUMN_BOX_ID, item.getBoxId());
-        values.put(StoreContract.Item.COLUMN_NAME, item.getName());
-        values.put(StoreContract.Item.COLUMN_PRICE, item.getPrice());
-
-        return db.insert(StoreContract.Item.TABLE_NAME, null, values);
+        return insert(item.toContentValues(),
+                StoreContract.Item.TABLE_NAME);
     }
 
-    public List<Box> queryBoxes() {
-        String[] projection = {
-                StoreContract.Box._ID,
-                StoreContract.Box.COLUMN_TITLE
+    private long insert(ContentValues contentValues,
+                        String tableName) {
+
+        return db.insert(tableName,
+                null,
+                contentValues);
+    }
+
+    public List<Box> queryAllBoxes() {
+
+        final List<Box> boxes = new ArrayList<>();
+        Processor processor = new Processor() {
+            @Override
+            public void process(Cursor cursor) {
+                boxes.add(new Box(cursor));
+            }
         };
 
-        Cursor cursor = db.query(
-                StoreContract.Box.TABLE_NAME,                     // The table to query
-                projection,                               // The columns to return
-                null,                                // The columns for the WHERE clause
-                null,                            // The values for the WHERE clause
-                null,                                     // don't group the rows
-                null,                                     // don't filter by row groups
-                null                                 // The sort order
-        );
-
-        List<Box> boxes = new ArrayList<>();
-        while(cursor.moveToNext()) {
-            long id = cursor.getLong(cursor.getColumnIndexOrThrow(StoreContract.Box._ID));
-            String title = cursor.getString(cursor.getColumnIndexOrThrow(StoreContract.Box.COLUMN_TITLE));
-
-            boxes.add(new Box(id, title));
-        }
-        cursor.close();
+        query(StoreContract.Box.TABLE_NAME,                     // The table to query
+                StoreContract.Box.PROJECTION,
+                null,
+                null,
+                processor);
 
         return boxes;
     }
@@ -109,19 +100,47 @@ public class StoreHelper {
         return queryItems(selection, selectionArgs);
     }
 
+    public List<Item> queryNewItems(long boxId) {
+        String selection = StoreContract.Item.COLUMN_BOX_ID + " = ?" +
+                " AND " +
+                StoreContract.Item.COLUMN_IS_NEW + " = ?";
+
+        String[] selectionArgs = {String.valueOf(boxId),
+                String.valueOf(1)};
+
+        return queryItems(selection, selectionArgs);
+    }
+
     public List<Item> queryAllItems(){
         return queryItems(null, null);
     }
 
     private List<Item> queryItems(String selection, String[] selectionArgs) {
-        String[] projection = {
-                StoreContract.Item._ID,
-                StoreContract.Item.COLUMN_NAME,
-                StoreContract.Item.COLUMN_PRICE
+
+        final List<Item> items = new ArrayList<>();
+        Processor processor = new Processor() {
+            @Override
+            public void process(Cursor cursor) {
+                items.add(new Item(cursor));
+            }
         };
 
+        query(StoreContract.Item.TABLE_NAME,                     // The table to query
+                StoreContract.Item.PROJECTION,
+                selection,
+                selectionArgs,
+                processor);
+
+        return items;
+    }
+
+    private void query(String tableName,
+                       String[] projection,
+                       String selection,
+                       String[] selectionArgs,
+                       Processor processor) {
         Cursor cursor = db.query(
-                StoreContract.Item.TABLE_NAME,                     // The table to query
+                tableName,                     // The table to query
                 projection,                               // The columns to return
                 selection,                                // The columns for the WHERE clause
                 selectionArgs,                            // The values for the WHERE clause
@@ -130,19 +149,10 @@ public class StoreHelper {
                 null                                 // The sort order
         );
 
-        List<Item> items = new ArrayList<>();
         while(cursor.moveToNext()) {
-
-            long id = cursor.getLong(cursor.getColumnIndexOrThrow(StoreContract.Item._ID));
-            String name = cursor.getString(cursor.getColumnIndexOrThrow(StoreContract.Item.COLUMN_NAME));
-            long boxId = cursor.getLong(cursor.getColumnIndexOrThrow(StoreContract.Item.COLUMN_BOX_ID));
-            int price = cursor.getInt(cursor.getColumnIndexOrThrow(StoreContract.Item.COLUMN_PRICE));
-
-            items.add(new Item(id, boxId, name, price));
+            processor.process(cursor);
         }
         cursor.close();
-
-        return items;
     }
 
     public void updateItemsWithUpdater(final Item[] newItems) {
@@ -182,6 +192,48 @@ public class StoreHelper {
         itemUpdater.update(itemStore);
     }
 
+    public void updateBoxesWithUpdater(final Box[] newBoxes) {
+        Updater<Box> itemUpdater = new Updater<>();
+        Store<Box> itemStore = new Store<Box>() {
+            @Override
+            public List<Box> queryAll() {
+                return queryAllBoxes();
+            }
+
+            @Override
+            public List<Box> getAllNew() {
+                return Arrays.asList(newBoxes);
+            }
+
+            @Override
+            public void update(Box box) {
+                updateBox(box);
+            }
+
+            @Override
+            public void delete(Box box) {
+                deleteBox(box);
+            }
+
+            @Override
+            public void insert(Box box) {
+                insertBox(box);
+            }
+
+            @Override
+            public boolean eligibleToDelete(Box box) {
+                return !hasDependencies(box);
+            }
+        };
+
+        itemUpdater.update(itemStore);
+    }
+
+    private boolean hasDependencies(Box box) {
+        List<Item> items = queryNewItems(box.getId());
+        return items.size() > 0;
+    }
+
     public void updateItems(Item[] newItems) {
         List<Item> items = queryAllItems();
 
@@ -217,32 +269,58 @@ public class StoreHelper {
         }
     }
 
-    void deleteItem(Item item) {
+    private int updateItem(Item item) {
 
-        String whereClause = StoreContract.Item._ID + " = ?";
-        String[] whereArgs = { String.valueOf(item.getId()) };
-
-        db.delete(StoreContract.Item.TABLE_NAME,
-                whereClause,
-                whereArgs);
+        return update(item.toContentValues(),
+                StoreContract.Item.TABLE_NAME,
+                StoreContract.Item._ID,
+                item.getId());
     }
 
-    int updateItem(Item item) {
+    private int updateBox(Box box) {
 
-        ContentValues values = item.toContentValues();
+        return update(box.toContentValues(),
+                StoreContract.Box.TABLE_NAME,
+                StoreContract.Box._ID,
+                box.getId());
+    }
 
-        String whereClause = StoreContract.Item._ID + " = ?";
-        String[] whereArgs = { String.valueOf(item.getId()) };
+    private int update(ContentValues contentValues,
+                       String tableName,
+                       String idColumn,
+                       long id) {
 
-        int result = db.update(StoreContract.Item.TABLE_NAME,
-                values,
+        String whereClause = idColumn + " = ?";
+        String[] whereArgs = {String.valueOf(id)};
+
+        int result = db.update(tableName,
+                contentValues,
                 whereClause,
                 whereArgs);
 
         return result;
     }
 
-    public void updateBoxes(Box[] newBoxes) {
+    private void deleteBox(Box box) {
+        delete(StoreContract.Box.TABLE_NAME,
+                StoreContract.Box._ID,
+                box.getId());
+    }
 
+    private void deleteItem(Item item) {
+        delete(StoreContract.Item.TABLE_NAME,
+                StoreContract.Item._ID,
+                item.getId());
+    }
+
+    private void delete(String tableName,
+                        String idColumn,
+                        long id) {
+        String whereClause = idColumn + " = ?";
+        String[] whereArgs = {String.valueOf(id)};
+
+        db.delete(tableName,
+                whereClause,
+                whereArgs);
     }
 }
